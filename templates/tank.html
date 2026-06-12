@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Name}} — tyvm</title>
+    <title>{{.Tank.Name}} — tyvm</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#0e7490">
@@ -35,11 +35,11 @@
                 <div class="parameter-card">
                     <div class="param-date">{{.LoggedAt.Format "Jan 2, 3:04 PM"}}</div>
                     <div class="param-values">
-                        {{if .PH}}<span>pH: {{printf "%.1f" .PH}}</span>{{end}}
-                        {{if .Ammonia}}<span>NH₃: {{printf "%.2f" .Ammonia}} ppm</span>{{end}}
-                        {{if .Nitrite}}<span>NO₂: {{printf "%.2f" .Nitrite}} ppm</span>{{end}}
-                        {{if .Nitrate}}<span>NO₃: {{printf "%.1f" .Nitrate}} ppm</span>{{end}}
-                        {{if .TempF}}<span>Temp: {{printf "%.1f" .TempF}}°F</span>{{end}}
+                        {{if .PH}}<span>pH: {{printf "%.1f" (deref .PH)}}</span>{{end}}
+                        {{if .Ammonia}}<span>NH₃: {{printf "%.2f" (deref .Ammonia)}} ppm</span>{{end}}
+                        {{if .Nitrite}}<span>NO₂: {{printf "%.2f" (deref .Nitrite)}} ppm</span>{{end}}
+                        {{if .Nitrate}}<span>NO₃: {{printf "%.1f" (deref .Nitrate)}} ppm</span>{{end}}
+                        {{if .TempF}}<span>Temp: {{printf "%.1f" (deref .TempF)}}°F</span>{{end}}
                     </div>
                     {{if .Notes}}<p class="notes">{{.Notes}}</p>{{end}}
                 </div>

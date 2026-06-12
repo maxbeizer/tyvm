@@ -20,7 +20,15 @@ func main() {
 	}
 	defer db.Close()
 
-	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	funcMap := template.FuncMap{
+		"deref": func(p *float64) float64 {
+			if p == nil {
+				return 0
+			}
+			return *p
+		},
+	}
+	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob("templates/*.html"))
 
 	app := &App{
 		db:        db,
