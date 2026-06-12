@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Parameters — {{.Name}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0e7490">
+</head>
+<body>
+    <header>
+        <h1>🐟 <a href="/">tyvm</a></h1>
+    </header>
+    <main>
+        <form method="POST" action="/tanks/{{.ID}}/log">
+            <h2>Log Parameters — {{.Name}}</h2>
+            <label>
+                pH
+                <input type="number" name="ph" step="0.1" min="0" max="14" placeholder="7.0">
+            </label>
+            <label>
+                Ammonia (ppm)
+                <input type="number" name="ammonia" step="0.01" min="0" placeholder="0.00">
+            </label>
+            <label>
+                Nitrite (ppm)
+                <input type="number" name="nitrite" step="0.01" min="0" placeholder="0.00">
+            </label>
+            <label>
+                Nitrate (ppm)
+                <input type="number" name="nitrate" step="0.1" min="0" placeholder="0.0">
+            </label>
+            <label>
+                Temperature (°F)
+                <input type="number" name="temp_f" step="0.1" min="0" placeholder="78.0">
+            </label>
+            <label>
+                Notes
+                <textarea name="notes" rows="3" placeholder="Optional notes..."></textarea>
+            </label>
+            <button type="submit">Save Parameters</button>
+            <a href="/tanks/{{.ID}}" class="button-link">Cancel</a>
+        </form>
+    </main>
+</body>
+</html>

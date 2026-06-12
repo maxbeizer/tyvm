@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tyvm — tank you very much</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0e7490">
+</head>
+<body>
+    <header>
+        <h1>🐟 tyvm</h1>
+        <p>tank you very much</p>
+    </header>
+    <main>
+        <div class="actions">
+            <a href="/tanks/new" class="button">+ New Tank</a>
+        </div>
+
+        {{if .}}
+        <div class="tank-list">
+            {{range .}}
+            <div class="tank-card">
+                <h2><a href="/tanks/{{.ID}}">{{.Name}}</a></h2>
+                <div class="tank-meta">
+                    {{if .SizeGallons}}<span>{{printf "%.1f" .SizeGallons}}g</span>{{end}}
+                    <span>{{.TankType}}</span>
+                </div>
+                {{if .LastLogged}}
+                <p class="last-logged">Last logged: {{.LastLogged.Format "Jan 2, 3:04 PM"}}</p>
+                {{else}}
+                <p class="last-logged">No parameters logged yet</p>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <p>No tanks yet. Create your first one!</p>
+        </div>
+        {{end}}
+    </main>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Name}} — tyvm</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0e7490">
+</head>
+<body>
+    <header>
+        <h1>🐟 <a href="/">tyvm</a></h1>
+    </header>
+    <main>
+        <div class="tank-header">
+            <h2>{{.Tank.Name}}</h2>
+            <div class="tank-meta">
+                {{if .Tank.SizeGallons}}<span>{{printf "%.1f" .Tank.SizeGallons}}g</span>{{end}}
+                <span>{{.Tank.TankType}}</span>
+            </div>
+            {{if .Tank.Notes}}<p class="notes">{{.Tank.Notes}}</p>{{end}}
+        </div>
+
+        <div class="actions">
+            <a href="/tanks/{{.Tank.ID}}/log" class="button">Log Parameters</a>
+        </div>
+
+        <section class="parameters-section">
+            <h3>Recent Parameters</h3>
+            {{if .Parameters}}
+            <div class="parameter-list">
+                {{range .Parameters}}
+                <div class="parameter-card">
+                    <div class="param-date">{{.LoggedAt.Format "Jan 2, 3:04 PM"}}</div>
+                    <div class="param-values">
+                        {{if .PH}}<span>pH: {{printf "%.1f" .PH}}</span>{{end}}
+                        {{if .Ammonia}}<span>NH₃: {{printf "%.2f" .Ammonia}} ppm</span>{{end}}
+                        {{if .Nitrite}}<span>NO₂: {{printf "%.2f" .Nitrite}} ppm</span>{{end}}
+                        {{if .Nitrate}}<span>NO₃: {{printf "%.1f" .Nitrate}} ppm</span>{{end}}
+                        {{if .TempF}}<span>Temp: {{printf "%.1f" .TempF}}°F</span>{{end}}
+                    </div>
+                    {{if .Notes}}<p class="notes">{{.Notes}}</p>{{end}}
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <p class="empty-state">No parameters logged yet.</p>
+            {{end}}
+        </section>
+
+        <section class="observations-section">
+            <h3>Observations</h3>
+            <form method="POST" action="/tanks/{{.Tank.ID}}/observations" class="observation-form">
+                <textarea name="note" placeholder="Add an observation..." rows="2" required></textarea>
+                <button type="submit">Save</button>
+            </form>
+            {{if .Observations}}
+            <div class="observation-list">
+                {{range .Observations}}
+                <div class="observation-card">
+                    <div class="obs-date">{{.ObservedAt.Format "Jan 2, 3:04 PM"}}</div>
+                    <p>{{.Note}}</p>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </section>
+    </main>
+</body>
+</html>

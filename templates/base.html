@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tyvm — tank you very much</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0e7490">
+</head>
+<body>
+    <header>
+        <h1>🐟 tyvm</h1>
+        <p>tank you very much</p>
+    </header>
+    <main>
+        <form method="POST" action="/tanks">
+            <h2>New Tank</h2>
+            <label>
+                Name *
+                <input type="text" name="name" required>
+            </label>
+            <label>
+                Size (gallons)
+                <input type="number" name="size_gallons" step="0.1" min="0">
+            </label>
+            <label>
+                Type
+                <select name="tank_type">
+                    <option value="freshwater">Freshwater</option>
+                    <option value="saltwater">Saltwater</option>
+                    <option value="brackish">Brackish</option>
+                </select>
+            </label>
+            <label>
+                Notes
+                <textarea name="notes" rows="3"></textarea>
+            </label>
+            <button type="submit">Create Tank</button>
+            <a href="/" class="button-link">Cancel</a>
+        </form>
+    </main>
+    <script src="/static/sw.js"></script>
+</body>
+</html>
