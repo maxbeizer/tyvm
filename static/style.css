@@ -5,14 +5,14 @@
 }
 
 :root {
-    --bg: #0a1628;
-    --surface: #1e293b;
-    --surface-hover: #2d3b52;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-hover: #f1f5f9;
+    --text: #1e293b;
+    --text-muted: #64748b;
     --accent: #0e7490;
     --accent-hover: #0891b2;
-    --border: #334155;
+    --border: #e2e8f0;
     --success: #22c55e;
     --warning: #f59e0b;
     --danger: #ef4444;
@@ -271,5 +271,70 @@ button[type="submit"] {
 
     .tank-card {
         padding: 1rem;
+    }
+}
+
+.danger-zone {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #fee2e2;
+}
+
+.button-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.button-danger:hover {
+    background: #dc2626;
+}
+
+.sparklines-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.spark-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.spark-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sparkline {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0a1628;
+        --surface: #0f2035;
+        --surface-hover: #1a2b47;
+        --text: #e2e8f0;
+        --text-muted: #94a3b8;
+        --accent: #0e7490;
+        --accent-hover: #0891b2;
+        --border: #1e3a5f;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+        background: #0f2035;
+        border-color: #1e3a5f;
+    }
+
+    a {
+        color: #38bdf8;
     }
 }

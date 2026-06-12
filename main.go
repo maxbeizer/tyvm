@@ -62,6 +62,10 @@ func main() {
 				app.createObservationHandler(w, r)
 				return
 			}
+			if parts[1] == "delete" && r.Method == http.MethodPost {
+				app.deleteTankHandler(w, r)
+				return
+			}
 		}
 
 		app.tankDetailHandler(w, r)

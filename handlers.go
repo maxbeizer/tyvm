@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -9,9 +10,32 @@ import (
 	"time"
 )
 
-type App struct {
-	db        *sql.DB
-	templates *template.Template
+func sparkline(values []float64, width, height int) string {
+	if len(values) < 2 {
+		return ""
+	}
+	min, max := values[0], values[0]
+	for _, v := range values {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+	if max == min {
+		max = min + 1
+	}
+
+	var points []string
+	for i, v := range values {
+		x := float64(i) / float64(len(values)-1) * float64(width)
+		y := float64(height) - (v-min)/(max-min)*float64(height)
+		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
+	}
+
+	return fmt.Sprintf(`<svg width="%d" height="%d" viewBox="0 0 %d %d" class="sparkline"><polyline points="%s" fill="none" stroke="#0e7490" stroke-width="1.5"/></svg>`,
+		width, height, width, height, strings.Join(points, " "))
 }
 
 func (app *App) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +149,7 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		FROM parameters
 		WHERE tank_id = ?
 		ORDER BY logged_at DESC
-		LIMIT 10
+		LIMIT 30
 	`, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -169,14 +193,43 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		observations = append(observations, o)
 	}
 
+	// Extract non-nil values for each parameter type (reversed for chronological order)
+	var phVals, ammoniaVals, nitriteVals, nitrateVals, tempVals []float64
+	for i := len(params) - 1; i >= 0; i-- {
+		p := params[i]
+		if p.PH != nil {
+			phVals = append(phVals, *p.PH)
+		}
+		if p.Ammonia != nil {
+			ammoniaVals = append(ammoniaVals, *p.Ammonia)
+		}
+		if p.Nitrite != nil {
+			nitriteVals = append(nitriteVals, *p.Nitrite)
+		}
+		if p.Nitrate != nil {
+			nitrateVals = append(nitrateVals, *p.Nitrate)
+		}
+		if p.TempF != nil {
+			tempVals = append(tempVals, *p.TempF)
+		}
+	}
+
 	data := struct {
 		Tank         Tank
 		Parameters   []Parameter
 		Observations []Observation
+		Sparklines   map[string]template.HTML
 	}{
 		Tank:         tank,
 		Parameters:   params,
 		Observations: observations,
+		Sparklines: map[string]template.HTML{
+			"ph":      template.HTML(sparkline(phVals, 80, 24)),
+			"ammonia": template.HTML(sparkline(ammoniaVals, 80, 24)),
+			"nitrite": template.HTML(sparkline(nitriteVals, 80, 24)),
+			"nitrate": template.HTML(sparkline(nitrateVals, 80, 24)),
+			"temp":    template.HTML(sparkline(tempVals, 80, 24)),
+		},
 	}
 
 	app.templates.ExecuteTemplate(w, "tank.html", data)
@@ -278,4 +331,26 @@ func (app *App) createObservationHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	http.Redirect(w, r, "/tanks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+}
+
+func (app *App) deleteTankHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
+	idStr = strings.TrimSuffix(idStr, "/delete")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := app.DeleteTank(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

@@ -2,10 +2,16 @@ package main
 
 import (
 	"database/sql"
+	"html/template"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+type App struct {
+	db        *sql.DB
+	templates *template.Template
+}
 
 type Tank struct {
 	ID          int64
@@ -33,6 +39,19 @@ type Observation struct {
 	TankID     int64
 	Note       string
 	ObservedAt time.Time
+}
+
+func (app *App) DeleteTank(id int64) error {
+	_, err := app.db.Exec("DELETE FROM observations WHERE tank_id = ?", id)
+	if err != nil {
+		return err
+	}
+	_, err = app.db.Exec("DELETE FROM parameters WHERE tank_id = ?", id)
+	if err != nil {
+		return err
+	}
+	_, err = app.db.Exec("DELETE FROM tanks WHERE id = ?", id)
+	return err
 }
 
 func initDB(dbPath string) (*sql.DB, error) {

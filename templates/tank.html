@@ -29,6 +29,40 @@
 
         <section class="parameters-section">
             <h3>Recent Parameters</h3>
+            {{if .Sparklines}}
+            <div class="sparklines-grid">
+                {{if index .Sparklines "ph"}}
+                <div class="spark-item">
+                    <span class="spark-label">pH</span>
+                    {{index .Sparklines "ph"}}
+                </div>
+                {{end}}
+                {{if index .Sparklines "ammonia"}}
+                <div class="spark-item">
+                    <span class="spark-label">NH₃</span>
+                    {{index .Sparklines "ammonia"}}
+                </div>
+                {{end}}
+                {{if index .Sparklines "nitrite"}}
+                <div class="spark-item">
+                    <span class="spark-label">NO₂</span>
+                    {{index .Sparklines "nitrite"}}
+                </div>
+                {{end}}
+                {{if index .Sparklines "nitrate"}}
+                <div class="spark-item">
+                    <span class="spark-label">NO₃</span>
+                    {{index .Sparklines "nitrate"}}
+                </div>
+                {{end}}
+                {{if index .Sparklines "temp"}}
+                <div class="spark-item">
+                    <span class="spark-label">Temp</span>
+                    {{index .Sparklines "temp"}}
+                </div>
+                {{end}}
+            </div>
+            {{end}}
             {{if .Parameters}}
             <div class="parameter-list">
                 {{range .Parameters}}
@@ -66,6 +100,12 @@
                 {{end}}
             </div>
             {{end}}
+        </section>
+
+        <section class="danger-zone">
+            <form method="POST" action="/tanks/{{.Tank.ID}}/delete" onsubmit="return confirm('Delete this tank and all its data?')">
+                <button type="submit" class="button button-danger">Delete Tank</button>
+            </form>
         </section>
     </main>
 </body>
