@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -74,16 +75,39 @@ func (app *App) ListTanks() ([]TankWithLastLog, error) {
 	var tanks []TankWithLastLog
 	for rows.Next() {
 		var t TankWithLastLog
-		var lastLogged sql.NullTime
+		// MAX(logged_at) is an aggregate with no declared column type, so the
+		// modernc.org/sqlite driver returns it as a string instead of
+		// auto-parsing it as a time.Time. Scan into a string and parse here.
+		var lastLogged sql.NullString
 		if err := rows.Scan(&t.ID, &t.Name, &t.SizeGallons, &t.TankType, &t.Notes, &t.CreatedAt, &lastLogged); err != nil {
 			return nil, err
 		}
 		if lastLogged.Valid {
-			t.LastLogged = &lastLogged.Time
+			if ts, ok := parseSQLiteTime(lastLogged.String); ok {
+				t.LastLogged = &ts
+			}
 		}
 		tanks = append(tanks, t)
 	}
 	return tanks, rows.Err()
+}
+
+// parseSQLiteTime parses the timestamp formats SQLite emits for
+// CURRENT_TIMESTAMP / datetime() values. Returns (zero, false) if none match.
+func parseSQLiteTime(s string) (time.Time, bool) {
+	for _, layout := range []string{
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02 15:04:05",
+		time.RFC3339Nano,
+		time.RFC3339,
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }
 
 // GetTank fetches one tank by id. Returns sql.ErrNoRows when not found.

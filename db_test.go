@@ -93,3 +93,31 @@ func TestListTanksOrdersNewestFirst(t *testing.T) {
 		t.Errorf("expected tanks A and B, got %+v", tanks)
 	}
 }
+
+// Regression test: MAX(logged_at) in ListTanks is an aggregate without a
+// declared column type, which the modernc.org/sqlite driver returns as a
+// string. Make sure we still produce a usable *time.Time.
+func TestListTanksPopulatesLastLogged(t *testing.T) {
+	app := newTestApp(t)
+	id, err := app.CreateTank("Reef", "saltwater", "", nil)
+	if err != nil {
+		t.Fatalf("CreateTank: %v", err)
+	}
+	ph := 8.2
+	if err := app.InsertParameters(id, &ph, nil, nil, nil, nil, ""); err != nil {
+		t.Fatalf("InsertParameters: %v", err)
+	}
+	tanks, err := app.ListTanks()
+	if err != nil {
+		t.Fatalf("ListTanks: %v", err)
+	}
+	if len(tanks) != 1 {
+		t.Fatalf("expected 1 tank, got %d", len(tanks))
+	}
+	if tanks[0].LastLogged == nil {
+		t.Fatal("expected LastLogged to be set after logging parameters")
+	}
+	if tanks[0].LastLogged.IsZero() {
+		t.Errorf("LastLogged parsed to zero time")
+	}
+}
