@@ -46,8 +46,19 @@ func initDB(dbPath string) (*sql.DB, error) {
 		observed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS livestock (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		tank_id INTEGER NOT NULL REFERENCES tanks(id) ON DELETE CASCADE,
+		species TEXT NOT NULL,
+		quantity INTEGER NOT NULL DEFAULT 1,
+		added_at DATE,
+		notes TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_parameters_tank_logged ON parameters(tank_id, logged_at DESC);
 	CREATE INDEX IF NOT EXISTS idx_observations_tank_observed ON observations(tank_id, observed_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_livestock_tank ON livestock(tank_id, created_at DESC);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -215,4 +226,68 @@ func (app *App) DeleteTank(id int64) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// ListLivestock returns all stocking entries for a tank, newest first.
+func (app *App) ListLivestock(tankID int64) ([]Livestock, error) {
+	rows, err := app.db.Query(`
+		SELECT id, tank_id, species, quantity, added_at, COALESCE(notes, ''), created_at
+		FROM livestock
+		WHERE tank_id = ?
+		ORDER BY created_at DESC
+	`, tankID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Livestock
+	for rows.Next() {
+		var l Livestock
+		// added_at is a plain DATE column; we let the driver scan it into
+		// sql.NullString and convert manually so a NULL becomes a nil *time.Time.
+		var addedAt sql.NullString
+		if err := rows.Scan(&l.ID, &l.TankID, &l.Species, &l.Quantity, &addedAt, &l.Notes, &l.CreatedAt); err != nil {
+			return nil, err
+		}
+		if addedAt.Valid {
+			if t, err := time.Parse("2006-01-02", addedAt.String); err == nil {
+				l.AddedAt = &t
+			} else if t, ok := parseSQLiteTime(addedAt.String); ok {
+				l.AddedAt = &t
+			}
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}
+
+// InsertLivestock adds a stocking entry for the given tank.
+func (app *App) InsertLivestock(tankID int64, species string, qty int, addedAt *time.Time, notes string) error {
+	var added any
+	if addedAt != nil {
+		added = addedAt.Format("2006-01-02")
+	}
+	_, err := app.db.Exec(
+		`INSERT INTO livestock (tank_id, species, quantity, added_at, notes) VALUES (?, ?, ?, ?, ?)`,
+		tankID, species, qty, added, notes,
+	)
+	return err
+}
+
+// DeleteLivestock removes a stocking entry. Returns sql.ErrNoRows if the entry
+// does not belong to the supplied tank (defense against id tampering).
+func (app *App) DeleteLivestock(tankID, id int64) error {
+	res, err := app.db.Exec(`DELETE FROM livestock WHERE id = ? AND tank_id = ?`, id, tankID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }

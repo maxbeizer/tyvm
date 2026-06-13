@@ -84,6 +84,43 @@
             {{end}}
         </section>
 
+        <section class="livestock-section">
+            <h3>Stocking</h3>
+            <form method="POST" action="/tanks/{{.Tank.ID}}/livestock" class="livestock-form">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+                <div class="livestock-row">
+                    <input type="text" name="species" placeholder="Species (e.g. Neon tetra)" required>
+                    <input type="number" name="quantity" min="1" value="1" aria-label="Quantity">
+                </div>
+                <div class="livestock-row">
+                    <label class="inline-label">
+                        Added
+                        <input type="date" name="added_at">
+                    </label>
+                </div>
+                <textarea name="notes" rows="2" placeholder="Notes (optional)"></textarea>
+                <button type="submit">Add to stocking</button>
+            </form>
+            {{if .Livestock}}
+            <div class="livestock-list">
+                {{range .Livestock}}
+                <div class="livestock-card">
+                    <div class="livestock-main">
+                        <span class="livestock-qty">{{.Quantity}}×</span>
+                        <span class="livestock-species">{{.Species}}</span>
+                        {{if .AddedAt}}<span class="livestock-date">added {{.AddedAt.Format "Jan 2, 2006"}}</span>{{end}}
+                    </div>
+                    {{if .Notes}}<p class="notes">{{.Notes}}</p>{{end}}
+                    <form method="POST" action="/tanks/{{.TankID}}/livestock/{{.ID}}/delete" class="livestock-delete" onsubmit="return confirm('Remove this entry?')">
+                        <input type="hidden" name="_csrf" value="{{$.CSRFToken}}">
+                        <button type="submit" class="button-link button-danger-link" aria-label="Delete entry">×</button>
+                    </form>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </section>
+
         <section class="observations-section">
             <h3>Observations</h3>
             <form method="POST" action="/tanks/{{.Tank.ID}}/observations" class="observation-form">

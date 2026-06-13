@@ -34,3 +34,13 @@ type Observation struct {
 	Note       string
 	ObservedAt time.Time
 }
+
+type Livestock struct {
+	ID        int64
+	TankID    int64
+	Species   string
+	Quantity  int
+	AddedAt   *time.Time
+	Notes     string
+	CreatedAt time.Time
+}
