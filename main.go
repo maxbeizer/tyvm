@@ -45,6 +45,8 @@ func main() {
 	mux.HandleFunc("GET /tanks/{id}/log", app.logFormHandler)
 	mux.HandleFunc("POST /tanks/{id}/log", app.logParametersHandler)
 	mux.HandleFunc("POST /tanks/{id}/observations", app.createObservationHandler)
+	mux.HandleFunc("POST /tanks/{id}/livestock", app.createLivestockHandler)
+	mux.HandleFunc("POST /tanks/{id}/livestock/{lid}/delete", app.deleteLivestockHandler)
 	mux.HandleFunc("POST /tanks/{id}/delete", app.deleteTankHandler)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 

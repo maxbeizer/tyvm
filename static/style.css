@@ -363,3 +363,23 @@ button[type="submit"] {
         color: #38bdf8;
     }
 }
+
+/* Stocking */
+.livestock-section { margin-top: 2rem; }
+.livestock-form { background: var(--surface); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; }
+.livestock-form textarea { width: 100%; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 0.95rem; background: var(--bg); color: var(--text); }
+.livestock-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+.livestock-row input[type=text] { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+.livestock-row input[type=number] { width: 5rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+.livestock-row input[type=date] { padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+.inline-label { display: inline-flex; gap: 0.5rem; align-items: center; color: var(--text-muted); font-size: 0.9rem; }
+.livestock-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.livestock-card { background: var(--surface); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 1rem; align-items: start; }
+.livestock-main { grid-column: 1; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.livestock-qty { font-weight: 600; color: var(--accent); }
+.livestock-species { font-weight: 500; }
+.livestock-date { color: var(--text-muted); font-size: 0.85rem; }
+.livestock-card .notes { grid-column: 1 / -1; margin-top: 0.25rem; color: var(--text-muted); font-size: 0.9rem; }
+.livestock-delete { grid-column: 2; grid-row: 1; margin: 0; padding: 0; }
+.livestock-delete button { background: transparent; color: var(--text-muted); border: none; font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; cursor: pointer; border-radius: 4px; }
+.livestock-delete button:hover { color: var(--danger); background: var(--surface-hover); }

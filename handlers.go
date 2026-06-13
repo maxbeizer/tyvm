@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 )
 
 // render executes the named template, logging — and reporting — failures
@@ -99,6 +101,11 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	livestock, err := app.ListLivestock(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Extract non-nil values for each parameter type in chronological order.
 	var phVals, ammoniaVals, nitriteVals, nitrateVals, tempVals []float64
@@ -125,12 +132,14 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		Tank         Tank
 		Parameters   []Parameter
 		Observations []Observation
+		Livestock    []Livestock
 		Sparklines   map[string]template.HTML
 		CSRFToken    string
 	}{
 		Tank:         tank,
 		Parameters:   params,
 		Observations: observations,
+		Livestock:    livestock,
 		Sparklines: map[string]template.HTML{
 			"ph":      template.HTML(sparkline(phVals, 80, 24)),
 			"ammonia": template.HTML(sparkline(ammoniaVals, 80, 24)),
@@ -233,4 +242,63 @@ func (app *App) deleteTankHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (app *App) createLivestockHandler(w http.ResponseWriter, r *http.Request) {
+	tankID, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	species := strings.TrimSpace(r.FormValue("species"))
+	if species == "" {
+		http.Error(w, "Species is required", http.StatusBadRequest)
+		return
+	}
+
+	qty := 1
+	if s := r.FormValue("quantity"); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 {
+			http.Error(w, "Quantity must be a positive integer", http.StatusBadRequest)
+			return
+		}
+		qty = n
+	}
+
+	var addedAt *time.Time
+	if s := r.FormValue("added_at"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			http.Error(w, "added_at must be YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		addedAt = &t
+	}
+
+	if err := app.InsertLivestock(tankID, species, qty, addedAt, r.FormValue("notes")); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/tanks/"+strconv.FormatInt(tankID, 10), http.StatusSeeOther)
+}
+
+func (app *App) deleteLivestockHandler(w http.ResponseWriter, r *http.Request) {
+	tankID, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	lid, err := strconv.ParseInt(r.PathValue("lid"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := app.DeleteLivestock(tankID, lid); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/tanks/"+strconv.FormatInt(tankID, 10), http.StatusSeeOther)
 }
