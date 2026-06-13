@@ -19,9 +19,9 @@
             <a href="/tanks/new" class="button">+ New Tank</a>
         </div>
 
-        {{if .}}
+        {{if .Tanks}}
         <div class="tank-list">
-            {{range .}}
+            {{range .Tanks}}
             <div class="tank-card">
                 <h2><a href="/tanks/{{.ID}}">{{.Name}}</a></h2>
                 <div class="tank-meta">

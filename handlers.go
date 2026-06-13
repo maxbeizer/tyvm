@@ -2,140 +2,86 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 )
 
-func sparkline(values []float64, width, height int) string {
-	if len(values) < 2 {
-		return ""
+// render executes the named template, logging — and reporting — failures
+// instead of leaving a half-written response on the floor.
+func (app *App) render(w http.ResponseWriter, name string, data any) {
+	if err := app.templates.ExecuteTemplate(w, name, data); err != nil {
+		log.Printf("template %s: %v", name, err)
+		// Headers may already be flushed; this is best-effort.
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
-	min, max := values[0], values[0]
-	for _, v := range values {
-		if v < min {
-			min = v
-		}
-		if v > max {
-			max = v
-		}
-	}
-	if max == min {
-		max = min + 1
-	}
+}
 
-	var points []string
-	for i, v := range values {
-		x := float64(i) / float64(len(values)-1) * float64(width)
-		y := float64(height) - (v-min)/(max-min)*float64(height)
-		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
-	}
+// pathID extracts the {id} path value as int64.
+func pathID(r *http.Request) (int64, error) {
+	return strconv.ParseInt(r.PathValue("id"), 10, 64)
+}
 
-	return fmt.Sprintf(`<svg width="%d" height="%d" viewBox="0 0 %d %d" class="sparkline"><polyline points="%s" fill="none" stroke="#0e7490" stroke-width="1.5"/></svg>`,
-		width, height, width, height, strings.Join(points, " "))
+// parseOptionalFloat parses a possibly-empty form value. An empty string
+// returns (nil, nil); a non-empty but invalid string returns an error.
+func parseOptionalFloat(s string) (*float64, error) {
+	if s == "" {
+		return nil, nil
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
 }
 
 func (app *App) homeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
-	rows, err := app.db.Query(`
-		SELECT t.id, t.name, t.size_gallons, t.tank_type, t.notes, t.created_at,
-		       MAX(p.logged_at) as last_logged
-		FROM tanks t
-		LEFT JOIN parameters p ON t.id = p.tank_id
-		GROUP BY t.id
-		ORDER BY t.created_at DESC
-	`)
+	tanks, err := app.ListTanks()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
-
-	type TankWithLastLog struct {
-		Tank
-		LastLogged *time.Time
-	}
-
-	var tanks []TankWithLastLog
-	for rows.Next() {
-		var t TankWithLastLog
-		var lastLogged sql.NullTime
-		err := rows.Scan(&t.ID, &t.Name, &t.SizeGallons, &t.TankType, &t.Notes, &t.CreatedAt, &lastLogged)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if lastLogged.Valid {
-			t.LastLogged = &lastLogged.Time
-		}
-		tanks = append(tanks, t)
-	}
-
-	app.templates.ExecuteTemplate(w, "index.html", tanks)
+	app.render(w, "index.html", struct {
+		Tanks     []TankWithLastLog
+		CSRFToken string
+	}{Tanks: tanks, CSRFToken: csrfToken(r)})
 }
 
 func (app *App) newTankHandler(w http.ResponseWriter, r *http.Request) {
-	app.templates.ExecuteTemplate(w, "base.html", nil)
+	app.render(w, "new_tank.html", struct{ CSRFToken string }{CSRFToken: csrfToken(r)})
 }
 
 func (app *App) createTankHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	name := r.FormValue("name")
-	sizeGallons := r.FormValue("size_gallons")
-	tankType := r.FormValue("tank_type")
-	notes := r.FormValue("notes")
-
 	if name == "" {
 		http.Error(w, "Tank name is required", http.StatusBadRequest)
 		return
 	}
 
-	var size *float64
-	if sizeGallons != "" {
-		s, err := strconv.ParseFloat(sizeGallons, 64)
-		if err == nil {
-			size = &s
-		}
-	}
-
-	_, err := app.db.Exec(
-		"INSERT INTO tanks (name, size_gallons, tank_type, notes) VALUES (?, ?, ?, ?)",
-		name, size, tankType, notes,
-	)
+	size, err := parseOptionalFloat(r.FormValue("size_gallons"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Invalid size_gallons", http.StatusBadRequest)
 		return
 	}
 
+	if _, err := app.CreateTank(name, r.FormValue("tank_type"), r.FormValue("notes"), size); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
-	parts := strings.Split(idStr, "/")
-	id, err := strconv.ParseInt(parts[0], 10, 64)
+	id, err := pathID(r)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	var tank Tank
-	err = app.db.QueryRow(
-		"SELECT id, name, size_gallons, tank_type, notes, created_at FROM tanks WHERE id = ?",
-		id,
-	).Scan(&tank.ID, &tank.Name, &tank.SizeGallons, &tank.TankType, &tank.Notes, &tank.CreatedAt)
-	if err == sql.ErrNoRows {
+	tank, err := app.GetTank(id)
+	if errors.Is(err, sql.ErrNoRows) {
 		http.NotFound(w, r)
 		return
 	} else if err != nil {
@@ -143,57 +89,18 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get recent parameters
-	paramRows, err := app.db.Query(`
-		SELECT id, ph, ammonia, nitrite, nitrate, temp_f, notes, logged_at
-		FROM parameters
-		WHERE tank_id = ?
-		ORDER BY logged_at DESC
-		LIMIT 30
-	`, id)
+	params, err := app.RecentParameters(id, 30)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer paramRows.Close()
-
-	var params []Parameter
-	for paramRows.Next() {
-		var p Parameter
-		err := paramRows.Scan(&p.ID, &p.PH, &p.Ammonia, &p.Nitrite, &p.Nitrate, &p.TempF, &p.Notes, &p.LoggedAt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		params = append(params, p)
-	}
-
-	// Get recent observations
-	obsRows, err := app.db.Query(`
-		SELECT id, note, observed_at
-		FROM observations
-		WHERE tank_id = ?
-		ORDER BY observed_at DESC
-		LIMIT 10
-	`, id)
+	observations, err := app.RecentObservations(id, 10)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer obsRows.Close()
 
-	var observations []Observation
-	for obsRows.Next() {
-		var o Observation
-		err := obsRows.Scan(&o.ID, &o.Note, &o.ObservedAt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		observations = append(observations, o)
-	}
-
-	// Extract non-nil values for each parameter type (reversed for chronological order)
+	// Extract non-nil values for each parameter type in chronological order.
 	var phVals, ammoniaVals, nitriteVals, nitrateVals, tempVals []float64
 	for i := len(params) - 1; i >= 0; i-- {
 		p := params[i]
@@ -219,6 +126,7 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 		Parameters   []Parameter
 		Observations []Observation
 		Sparklines   map[string]template.HTML
+		CSRFToken    string
 	}{
 		Tank:         tank,
 		Parameters:   params,
@@ -230,23 +138,21 @@ func (app *App) tankDetailHandler(w http.ResponseWriter, r *http.Request) {
 			"nitrate": template.HTML(sparkline(nitrateVals, 80, 24)),
 			"temp":    template.HTML(sparkline(tempVals, 80, 24)),
 		},
+		CSRFToken: csrfToken(r),
 	}
 
-	app.templates.ExecuteTemplate(w, "tank.html", data)
+	app.render(w, "tank.html", data)
 }
 
 func (app *App) logFormHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
-	idStr = strings.TrimSuffix(idStr, "/log")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := pathID(r)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	var tank Tank
-	err = app.db.QueryRow("SELECT id, name FROM tanks WHERE id = ?", id).Scan(&tank.ID, &tank.Name)
-	if err == sql.ErrNoRows {
+	tank, err := app.GetTank(id)
+	if errors.Is(err, sql.ErrNoRows) {
 		http.NotFound(w, r)
 		return
 	} else if err != nil {
@@ -254,46 +160,39 @@ func (app *App) logFormHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.templates.ExecuteTemplate(w, "log.html", tank)
+	app.render(w, "log.html", struct {
+		Tank      Tank
+		CSRFToken string
+	}{Tank: tank, CSRFToken: csrfToken(r)})
 }
 
 func (app *App) logParametersHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
-	idStr = strings.TrimSuffix(idStr, "/log")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := pathID(r)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	parseFloat := func(s string) *float64 {
-		if s == "" {
-			return nil
-		}
-		f, err := strconv.ParseFloat(s, 64)
+	fields := []struct {
+		name string
+		ptr  **float64
+	}{
+		{"ph", new(*float64)},
+		{"ammonia", new(*float64)},
+		{"nitrite", new(*float64)},
+		{"nitrate", new(*float64)},
+		{"temp_f", new(*float64)},
+	}
+	for _, f := range fields {
+		v, err := parseOptionalFloat(r.FormValue(f.name))
 		if err != nil {
-			return nil
+			http.Error(w, "Invalid value for "+f.name, http.StatusBadRequest)
+			return
 		}
-		return &f
+		*f.ptr = v
 	}
 
-	ph := parseFloat(r.FormValue("ph"))
-	ammonia := parseFloat(r.FormValue("ammonia"))
-	nitrite := parseFloat(r.FormValue("nitrite"))
-	nitrate := parseFloat(r.FormValue("nitrate"))
-	tempF := parseFloat(r.FormValue("temp_f"))
-	notes := r.FormValue("notes")
-
-	_, err = app.db.Exec(`
-		INSERT INTO parameters (tank_id, ph, ammonia, nitrite, nitrate, temp_f, notes)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, id, ph, ammonia, nitrite, nitrate, tempF, notes)
-	if err != nil {
+	if err := app.InsertParameters(id, *fields[0].ptr, *fields[1].ptr, *fields[2].ptr, *fields[3].ptr, *fields[4].ptr, r.FormValue("notes")); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -302,14 +201,7 @@ func (app *App) logParametersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) createObservationHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
-	idStr = strings.TrimSuffix(idStr, "/observations")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := pathID(r)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -321,11 +213,7 @@ func (app *App) createObservationHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	_, err = app.db.Exec(
-		"INSERT INTO observations (tank_id, note) VALUES (?, ?)",
-		id, note,
-	)
-	if err != nil {
+	if err := app.InsertObservation(id, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -334,14 +222,7 @@ func (app *App) createObservationHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *App) deleteTankHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	idStr := strings.TrimPrefix(r.URL.Path, "/tanks/")
-	idStr = strings.TrimSuffix(idStr, "/delete")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := pathID(r)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -351,6 +232,5 @@ func (app *App) deleteTankHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

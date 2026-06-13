@@ -63,11 +63,36 @@ go build -o tyvm .
 The app uses Go's `html/template` for rendering and standard library HTTP server. No external frameworks required.
 
 Project structure:
-- `main.go` — HTTP server and routing
-- `db.go` — Database initialization and schema
-- `handlers.go` — Request handlers
-- `templates/` — HTML templates
+- `main.go` — HTTP server, Go 1.22 method+path routing, CSRF middleware wiring
+- `models.go` — domain types (`Tank`, `Parameter`, `Observation`)
+- `db.go` — schema, connection setup, all SQL queries (no SQL lives in handlers)
+- `handlers.go` — thin request handlers
+- `csrf.go` — double-submit-cookie CSRF protection for unsafe methods
+- `sparkline.go` — inline-SVG sparkline rendering
+- `*_test.go` — unit/integration tests (`go test ./...`)
+- `templates/` — HTML templates (forms include a `_csrf` hidden field)
 - `static/` — CSS, JS, PWA assets
+
+## Testing
+
+```bash
+go test ./...
+# or
+make test       # quick
+make ci         # build + vet + race + coverage
+make coverage   # summary (after test-race / ci)
+```
+
+## Make targets
+
+Run `make help` for the full list. Common ones:
+
+- `make build` — produce `bin/tyvm`
+- `make run` / `make dev` — run the server (build, or `go run`)
+- `make test` / `make test-race` / `make ci`
+- `make fmt` / `make vet` / `make lint` / `make tidy`
+- `make docker` / `make docker-run`
+- `make clean`
 
 ## License
 

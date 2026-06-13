@@ -1,12 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 )
+
+type App struct {
+	db        *sql.DB
+	templates *template.Template
+}
 
 func main() {
 	dbPath := os.Getenv("DB_PATH")
@@ -30,48 +35,18 @@ func main() {
 	}
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob("templates/*.html"))
 
-	app := &App{
-		db:        db,
-		templates: tmpl,
-	}
+	app := &App{db: db, templates: tmpl}
 
-	http.HandleFunc("/", app.homeHandler)
-	http.HandleFunc("/tanks/new", app.newTankHandler)
-	http.HandleFunc("/tanks", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			app.createTankHandler(w, r)
-		} else {
-			http.NotFound(w, r)
-		}
-	})
-
-	http.HandleFunc("/tanks/", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/tanks/")
-		parts := strings.Split(path, "/")
-
-		if len(parts) >= 2 {
-			if parts[1] == "log" {
-				if r.Method == http.MethodPost {
-					app.logParametersHandler(w, r)
-				} else {
-					app.logFormHandler(w, r)
-				}
-				return
-			}
-			if parts[1] == "observations" && r.Method == http.MethodPost {
-				app.createObservationHandler(w, r)
-				return
-			}
-			if parts[1] == "delete" && r.Method == http.MethodPost {
-				app.deleteTankHandler(w, r)
-				return
-			}
-		}
-
-		app.tankDetailHandler(w, r)
-	})
-
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", app.homeHandler)
+	mux.HandleFunc("GET /tanks/new", app.newTankHandler)
+	mux.HandleFunc("POST /tanks", app.createTankHandler)
+	mux.HandleFunc("GET /tanks/{id}", app.tankDetailHandler)
+	mux.HandleFunc("GET /tanks/{id}/log", app.logFormHandler)
+	mux.HandleFunc("POST /tanks/{id}/log", app.logParametersHandler)
+	mux.HandleFunc("POST /tanks/{id}/observations", app.createObservationHandler)
+	mux.HandleFunc("POST /tanks/{id}/delete", app.deleteTankHandler)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -79,5 +54,5 @@ func main() {
 	}
 
 	log.Printf("Starting server on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, csrfMiddleware(mux)))
 }

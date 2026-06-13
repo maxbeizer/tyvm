@@ -1,20 +1,22 @@
+{{define "new_tank.html"}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tyvm — tank you very much</title>
+    <title>New Tank — tyvm</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#0e7490">
 </head>
 <body>
     <header>
-        <h1>🐟 tyvm</h1>
+        <h1>🐟 <a href="/">tyvm</a></h1>
         <p>tank you very much</p>
     </header>
     <main>
         <form method="POST" action="/tanks">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
             <h2>New Tank</h2>
             <label>
                 Name *
@@ -40,6 +42,6 @@
             <a href="/" class="button-link">Cancel</a>
         </form>
     </main>
-    <script src="/static/sw.js"></script>
 </body>
 </html>
+{{end}}

@@ -1,4 +1,6 @@
 tyvm
+bin/
+coverage.out
 *.db
 *.db-shm
 *.db-wal

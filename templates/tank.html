@@ -87,6 +87,7 @@
         <section class="observations-section">
             <h3>Observations</h3>
             <form method="POST" action="/tanks/{{.Tank.ID}}/observations" class="observation-form">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
                 <textarea name="note" placeholder="Add an observation..." rows="2" required></textarea>
                 <button type="submit">Save</button>
             </form>
@@ -104,6 +105,7 @@
 
         <section class="danger-zone">
             <form method="POST" action="/tanks/{{.Tank.ID}}/delete" onsubmit="return confirm('Delete this tank and all its data?')">
+                <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
                 <button type="submit" class="button button-danger">Delete Tank</button>
             </form>
         </section>

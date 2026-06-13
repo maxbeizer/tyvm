@@ -17,18 +17,22 @@ Go + SQLite + plain HTML templates. Mobile-first PWA. Single binary.
 
 ```
 tyvm/
-├── main.go          # HTTP server, routing
-├── db.go            # SQLite schema + queries
-├── handlers.go      # Request handlers
-├── templates/       # HTML templates
-│   ├── base.html    # Layout wrapper
-│   ├── index.html   # Tank list
-│   ├── tank.html    # Tank detail
-│   └── log.html     # Parameter log form
+├── main.go          # HTTP server, Go 1.22 method+path routing
+├── models.go        # Domain types
+├── db.go            # Schema + all SQL queries (no SQL in handlers)
+├── handlers.go      # Thin request handlers
+├── csrf.go          # Double-submit-cookie CSRF middleware
+├── sparkline.go     # Inline-SVG sparkline rendering
+├── *_test.go        # Unit/integration tests
+├── templates/       # HTML templates (forms carry hidden _csrf field)
+│   ├── new_tank.html
+│   ├── index.html
+│   ├── tank.html
+│   └── log.html
 ├── static/
-│   ├── style.css    # Mobile-first styles
-│   ├── manifest.json # PWA manifest
-│   └── sw.js        # Service worker
+│   ├── style.css
+│   ├── manifest.json
+│   └── sw.js
 ├── Dockerfile
 ├── go.mod
 └── README.md
@@ -72,7 +76,9 @@ SQLite file is the entire database — back it up by copying the file.
 - Keep dependencies minimal — stdlib first, only add external deps when necessary
 - No JS frameworks — server-rendered HTML only
 - Mobile-first CSS — design for 375px, scale up
-- All DB queries in `db.go` — no SQL in handlers
+- **All SQL lives in `db.go`** — handlers call methods on `*App`, never run raw SQL
+- Routing uses Go 1.22 method+path patterns (`GET /tanks/{id}/log`); extract path vars with `r.PathValue`
+- All state-changing POSTs are protected by `csrfMiddleware`; templates rendering forms must include `<input type="hidden" name="_csrf" value="{{.CSRFToken}}">`
 - Templates use `base.html` as layout wrapper
 
 ## Adding a Feature
