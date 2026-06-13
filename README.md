@@ -17,9 +17,17 @@ Track water parameters, observations, and maintenance for your aquariums. Mobile
 
 ### Run with Docker
 
+Pull the latest published image from GHCR:
+
+```bash
+docker run -p 8080:8080 -v $(pwd)/data:/data ghcr.io/maxbeizer/tyvm:latest
+```
+
+Or build locally:
+
 ```bash
 docker build -t tyvm .
-docker run -p 8080:8080 -v $(pwd)/data:/data -e DB_PATH=/data/tyvm.db tyvm
+docker run -p 8080:8080 -v $(pwd)/data:/data tyvm
 ```
 
 Visit http://localhost:8080
